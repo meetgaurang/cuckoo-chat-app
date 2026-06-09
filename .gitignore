@@ -1,0 +1,20 @@
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# python
+__pycache__/
+*.pyc
+backend/.venv/
+backend/venv/
+
+# node
+frontend/node_modules/
+frontend/dist/
+
+# os / editor
+.DS_Store
+
+# claude code local config
+.claude/

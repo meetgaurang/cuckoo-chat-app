@@ -1,0 +1,23 @@
+services:
+  backend:
+    build: ./backend
+    environment:
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      BEDROCK_MODEL_ID: ${BEDROCK_MODEL_ID:-google.gemma-3-4b-it}
+      MAX_TOKENS: ${MAX_TOKENS:-1024}
+      TEMPERATURE: ${TEMPERATURE:-0.7}
+      # AWS credentials (resolved by boto3 from the standard chain).
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+    expose:
+      - "8000"
+    ports:
+      - "8000:8000" # exposed for local debugging / curl; not required by the UI
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
