@@ -8,7 +8,7 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from ..bedrock import stream_chat
+from ..openrouter import stream_chat
 
 router = APIRouter()
 

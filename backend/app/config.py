@@ -1,8 +1,4 @@
-"""Application configuration, sourced entirely from environment variables.
-
-AWS credentials are intentionally NOT defined here — boto3 resolves them from
-the standard provider chain (env vars, shared profile, instance role, etc.).
-"""
+"""Application configuration, sourced entirely from environment variables."""
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -11,9 +7,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    # AWS / Bedrock
-    aws_region: str = "us-east-1"
-    bedrock_model_id: str = "google.gemma-3-4b-it"
+    # OpenRouter
+    openrouter_api_key: str = ""
+    openrouter_model: str = "google/gemma-4-31b-it:free"
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    # Optional attribution headers OpenRouter recommends (shown on their site).
+    openrouter_referer: str = "http://localhost:3000"
+    openrouter_title: str = "Cuckoo Chat"
 
     # Inference params
     max_tokens: int = 1024

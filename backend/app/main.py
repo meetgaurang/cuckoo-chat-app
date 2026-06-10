@@ -21,4 +21,8 @@ app.include_router(chat_router, prefix="/api")
 
 @app.get("/api/health")
 def health() -> dict:
-    return {"status": "ok", "model": settings.bedrock_model_id, "region": settings.aws_region}
+    return {
+        "status": "ok",
+        "provider": "openrouter",
+        "model": settings.openrouter_model,
+    }
