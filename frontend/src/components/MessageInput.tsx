@@ -33,7 +33,7 @@ export function MessageInput({ onSend, onStop, isStreaming }: MessageInputProps)
   };
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 pb-4">
+    <div className="mx-auto w-full max-w-3xl px-4 pb-4 pt-4">
       <div className="flex items-end gap-2 rounded-2xl border border-input bg-background p-2 shadow-sm">
         <Textarea
           ref={textareaRef}
