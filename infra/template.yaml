@@ -1,0 +1,134 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >-
+  Cuckoo Chat — serverless. FastAPI on Lambda (via AWS Lambda Web Adapter,
+  with response streaming) behind a CORS-enabled Function URL that the browser
+  calls directly, plus a static frontend on S3 served through CloudFront.
+  Calling the Function URL directly avoids CloudFront buffering, keeping SSE
+  streaming smooth.
+
+Parameters:
+  OpenRouterApiKey:
+    Type: String
+    NoEcho: true
+    Description: OpenRouter API key (sk-or-...).
+  OpenRouterModel:
+    Type: String
+    Default: google/gemma-4-31b-it:free
+    Description: OpenRouter model slug.
+  LwaLayerArn:
+    Type: String
+    Default: arn:aws:lambda:us-east-1:753240598075:layer:LambdaAdapterLayerArm64:24
+    Description: >-
+      AWS Lambda Web Adapter layer (arm64). The version and region are baked
+      into this ARN — if you deploy outside us-east-1, override it. Latest ARNs:
+      https://github.com/awslabs/aws-lambda-web-adapter
+
+Resources:
+
+  # ---- Backend: FastAPI on Lambda via the Web Adapter --------------------
+  ChatFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: run.sh
+      Runtime: python3.12
+      Architectures: [arm64]
+      MemorySize: 512
+      Timeout: 300
+      Layers:
+        - !Ref LwaLayerArn
+      Environment:
+        Variables:
+          AWS_LAMBDA_EXEC_WRAPPER: /opt/bootstrap   # hands control to the adapter
+          AWS_LWA_INVOKE_MODE: response_stream       # keep SSE streaming alive
+          PORT: 8080                                 # adapter -> uvicorn port
+          OPENROUTER_API_KEY: !Ref OpenRouterApiKey
+          OPENROUTER_MODEL: !Ref OpenRouterModel
+      FunctionUrlConfig:
+        AuthType: NONE                 # public; the browser calls this URL directly
+        InvokeMode: RESPONSE_STREAM
+        Cors:
+          # Demo: allow any origin. Lambda answers the preflight at the edge,
+          # so this never conflicts with the app's CORSMiddleware. Tighten
+          # AllowOrigins to your CloudFront URL to lock it down.
+          AllowOrigins: ['*']
+          AllowMethods: [GET, POST]
+          AllowHeaders: [content-type]
+          MaxAge: 86400
+
+  # ---- Frontend: private S3 bucket, served only via CloudFront -----------
+  SiteBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  SiteOAC:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub '${AWS::StackName}-s3-oac'
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: index.html
+        PriceClass: PriceClass_100   # cheapest edge footprint (NA + EU)
+        Origins:
+          - Id: s3-site
+            DomainName: !GetAtt SiteBucket.RegionalDomainName
+            OriginAccessControlId: !Ref SiteOAC
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+        DefaultCacheBehavior:
+          TargetOriginId: s3-site
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS]
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6   # Managed-CachingOptimized
+        CustomErrorResponses:    # SPA fallback: serve index.html for client-side routes
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+
+  SiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref SiteBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowCloudFrontRead
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub '${SiteBucket.Arn}/*'
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${Distribution}'
+
+Outputs:
+  CloudFrontUrl:
+    Description: Public app URL.
+    Value: !Sub 'https://${Distribution.DomainName}'
+  SiteBucket:
+    Description: S3 bucket the frontend build is synced to.
+    Value: !Ref SiteBucket
+  DistributionId:
+    Description: CloudFront distribution id (for cache invalidation).
+    Value: !Ref Distribution
+  FunctionUrl:
+    Description: Direct Lambda Function URL (debugging / bypassing CloudFront).
+    Value: !GetAtt ChatFunctionUrl.FunctionUrl

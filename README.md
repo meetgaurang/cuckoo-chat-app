@@ -7,53 +7,107 @@ via **OpenRouter**.
 - **Backend:** Python + FastAPI, streaming via SSE
 - **Model:** OpenRouter `google/gemma-4-31b-it:free` (OpenAI-compatible chat completions)
 - **No database** — conversation history lives client-side (localStorage)
-- **Containerised** with Docker Compose
+- **Serverless** — Lambda + S3/CloudFront, scales to zero (pay per request)
 
 ```
-browser ──SSE──▶ nginx (frontend) ──/api──▶ FastAPI (backend) ──stream──▶ OpenRouter
+browser ──/api──▶ Lambda Function URL (FastAPI via Web Adapter) ──stream──▶ OpenRouter
+   └──────/*─────▶ CloudFront ──▶ S3 (static frontend)
 ```
+
+The browser calls the Lambda Function URL directly (CORS-enabled) so SSE streaming
+isn't buffered by CloudFront; CloudFront just serves the static frontend from S3.
 
 ## Prerequisites
 
-1. An OpenRouter account and API key — create one at <https://openrouter.ai/keys>.
-   The default model is on OpenRouter's free tier.
-2. Docker + Docker Compose.
+- An OpenRouter account and API key — create one at <https://openrouter.ai/keys>.
+  The default model is on OpenRouter's free tier.
+- For local dev: Python 3.12 and Node.js. **No Docker needed.**
 
-## Run with Docker (recommended)
+## Local development
+
+No Docker, no nginx — just two processes.
+
+### One-time setup
 
 ```bash
-cp .env.example .env
-# edit .env: set OPENROUTER_API_KEY
-docker compose up --build
+# backend
+cd backend
+cp .env.example .env                  # then set OPENROUTER_API_KEY
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+
+# frontend
+cd ../frontend
+npm install
 ```
 
-- Frontend: <http://localhost:3000>
-- Backend:  <http://localhost:8000> (proxied at `/api` by the frontend's nginx)
+### Run it
 
-## Run locally without Docker
-
-Backend:
+**Backend** (terminal 1):
 
 ```bash
 cd backend
-python3.12 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-export OPENROUTER_API_KEY=sk-or-...
-export OPENROUTER_MODEL=google/gemma-4-31b-it:free
-uvicorn app.main:app --reload --port 8000
+./dev.sh                              # uvicorn with --reload on :8000
 ```
 
-Frontend (in another terminal):
+**Frontend** (terminal 2):
 
 ```bash
 cd frontend
-npm install
-npm run dev   # http://localhost:5173, proxies /api to localhost:8000
+npm run dev                           # http://localhost:5173, proxies /api to :8000
 ```
+
+Open <http://localhost:5173>. The Vite dev server proxies `/api` to the backend,
+so the browser sees a single origin (no CORS) — the same backend runtime used in
+production.
+
+> **`dev.sh` vs `run.sh`:** both start the same FastAPI app with uvicorn.
+> `dev.sh` is for local use (autoreload, port 8000). `run.sh` is the **production
+> entrypoint** that AWS Lambda invokes via the Web Adapter (no reload, port 8080) —
+> you never run it by hand; `deploy.sh` wires it up.
+
+## Deploy to AWS
+
+The whole stack is serverless and scales to zero (≈$0 when idle):
+
+- **Backend** → Lambda. FastAPI runs unchanged under the
+  [AWS Lambda Web Adapter](https://github.com/awslabs/aws-lambda-web-adapter),
+  which runs your real `uvicorn` and preserves SSE streaming via a
+  response-streaming Function URL. The frontend calls this URL directly
+  (CORS is enabled on the Function URL).
+- **Frontend** → S3, served through CloudFront. `deploy.sh` bakes the Function URL
+  into the build via `VITE_API_BASE_URL`.
+
+```bash
+cd backend && cp .env.example .env   # set OPENROUTER_API_KEY (one-time)
+cd .. && ./deploy.sh
+```
+
+`deploy.sh` builds the Lambda (`sam build --use-container`), deploys the stack
+([infra/template.yaml](infra/template.yaml)), then builds the frontend, syncs it
+to S3, and invalidates the CloudFront cache. It prints the public URL at the end.
+
+> **Docker note:** Docker is required *only* by `sam build --use-container`, which
+> compiles native deps (pydantic-core, uvloop) for Lambda's arm64 Linux. It is not
+> part of the local dev loop.
+
+**Requirements:** AWS CLI (configured), SAM CLI, Node, Docker (deploy only).
+
+**Region:** the default LWA layer ARN in the template is for `us-east-1`. To deploy
+elsewhere, pass a matching layer ARN, e.g.:
+
+```bash
+AWS_REGION=eu-west-1 \
+LWA_LAYER_ARN=arn:aws:lambda:eu-west-1:753240598075:layer:LambdaAdapterLayerArm64:24 \
+./deploy.sh
+```
+
+(Find current ARNs in the [LWA releases](https://github.com/awslabs/aws-lambda-web-adapter).)
 
 ## Configuration
 
-All backend config is via environment variables (see `.env.example`):
+Backend config is via environment variables (see [backend/.env.example](backend/.env.example)).
+Locally these come from `backend/.env`; in AWS they're set on the Lambda by the template.
 
 | Variable | Default | Notes |
 | --- | --- | --- |
@@ -61,7 +115,7 @@ All backend config is via environment variables (see `.env.example`):
 | `OPENROUTER_MODEL` | `google/gemma-4-31b-it:free` | Any OpenRouter model slug |
 | `MAX_TOKENS` | `1024` | Max output tokens |
 | `TEMPERATURE` | `0.7` | Sampling temperature |
-| `ALLOWED_ORIGIN` | `http://localhost:5173` | CORS origin (dev only; nginx proxies in Docker) |
+| `ALLOWED_ORIGIN` | `http://localhost:5173` | App-level CORS origin. Unused in prod — the Lambda Function URL handles CORS (allows all origins by default; see [infra/template.yaml](infra/template.yaml)). |
 
 **Swap the model** by changing `OPENROUTER_MODEL` — no code change needed, since
 OpenRouter is OpenAI-compatible (e.g. `google/gemma-4-26b-a4b-it:free`).
@@ -90,14 +144,16 @@ backend/
     config.py        # env-driven settings
     openrouter.py    # OpenRouter streaming chat-completions wrapper
     routes/chat.py   # POST /api/chat → SSE
-  Dockerfile
+  dev.sh             # local entrypoint (uvicorn --reload on :8000)
+  run.sh             # Lambda entrypoint (starts uvicorn for the Web Adapter)
+  requirements.txt
+infra/
+  template.yaml      # SAM: Lambda + Function URL + S3 + CloudFront
+deploy.sh            # build + deploy backend & frontend
 frontend/
   src/
     App.tsx
     components/      # ChatWindow, MessageInput, ui/{button,textarea}
     hooks/useChatStream.ts  # SSE reader + client-side history
-  Dockerfile         # multi-stage: build → nginx
-  nginx.conf         # serves SPA + proxies /api (SSE-friendly)
-docker-compose.yml
 docs/plan.md
 ```

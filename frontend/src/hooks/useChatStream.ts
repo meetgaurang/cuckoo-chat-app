@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Message } from "@/types";
 
-// Backend base URL. Defaults to "" so requests hit the same origin
-// (Vite dev proxy in development, nginx proxy in the container).
+// Backend base URL. Empty in dev so requests hit the same origin via the Vite
+// proxy. In production it's set at build time to the Lambda Function URL, so the
+// browser calls the backend directly (cross-origin; CORS allowed on the Function URL).
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 const STORAGE_KEY = "cuckoo-chat-history";
 
