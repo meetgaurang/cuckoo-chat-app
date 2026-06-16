@@ -29,6 +29,8 @@ Resources:
   # ---- Backend: FastAPI on Lambda via the Web Adapter --------------------
   ChatFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: makefile   # backend/Makefile -> build-ChatFunction (no Docker)
     Properties:
       CodeUri: ../backend/
       Handler: run.sh

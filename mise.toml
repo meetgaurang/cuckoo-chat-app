@@ -1,0 +1,8 @@
+# Pinned dev toolchain, managed by mise (https://mise.jdx.dev).
+# Run `mise install` to set these up.
+[tools]
+node = "22"        # frontend: Vite + React build/dev
+python = "3.12.13"    # backend: FastAPI + uvicorn
+aws-cli = "latest"  # deploy: AWS CLI (S3 sync, CloudFront invalidation)
+
+# aws-sam-cli is managed by homebrew (`brew install aws-sam-cli`), not mise.

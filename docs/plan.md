@@ -97,10 +97,11 @@ Defined in `infra/template.yaml` (AWS SAM), deployed by `deploy.sh`:
   URL) rather than via CloudFront — this avoids CloudFront buffering the token stream.
   `deploy.sh` bakes the Function URL into the build via `VITE_API_BASE_URL`.
 
-`deploy.sh`: `sam build --use-container` → `sam deploy` → `npm run build` →
-`aws s3 sync` → CloudFront invalidation. Docker is needed *only* by
-`sam build --use-container` (to compile native deps for Lambda's arm64 Linux), not
-for local dev.
+`deploy.sh`: `sam build` → `sam deploy` → `npm run build` → `aws s3 sync` →
+CloudFront invalidation. No Docker: the backend build (`backend/Makefile`, via
+`Metadata: BuildMethod: makefile`) installs prebuilt Linux/arm64 wheels with pip.
+If a dependency ever lacks a prebuilt arm64 wheel, switch back to
+`sam build --use-container`.
 
 ## Key risks / notes
 

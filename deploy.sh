@@ -3,9 +3,8 @@
 #   backend  -> Lambda (FastAPI via Web Adapter, streaming Function URL)
 #   frontend -> S3, served through CloudFront (which also routes /api/* to Lambda)
 #
-# Requires: aws cli (configured), sam cli, node/npm, and Docker — Docker is used
-# ONLY by `sam build --use-container` to compile native deps (pydantic-core,
-# uvloop, ...) for Lambda's arm64 Linux. Day-to-day local dev needs no Docker.
+# Requires: aws cli (configured), sam cli, node/npm, python3 + pip. No Docker:
+# the backend build (backend/Makefile) installs prebuilt Linux/arm64 wheels.
 #
 # Usage:  ./deploy.sh          (reads secrets from backend/.env)
 # Env overrides: STACK_NAME, AWS_REGION, LWA_LAYER_ARN
@@ -25,8 +24,8 @@ OPENROUTER_MODEL="${OPENROUTER_MODEL:-google/gemma-4-31b-it:free}"
 PARAM_OVERRIDES=(OpenRouterApiKey="$OPENROUTER_API_KEY" OpenRouterModel="$OPENROUTER_MODEL")
 [ -n "${LWA_LAYER_ARN:-}" ] && PARAM_OVERRIDES+=(LwaLayerArn="$LWA_LAYER_ARN")
 
-echo "==> Building backend (sam build --use-container)…"
-sam build --use-container -t infra/template.yaml
+echo "==> Building backend (sam build)…"
+sam build -t infra/template.yaml
 
 echo "==> Deploying stack '$STACK_NAME' to $REGION…"
 sam deploy \

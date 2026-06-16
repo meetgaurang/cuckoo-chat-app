@@ -83,15 +83,16 @@ cd backend && cp .env.example .env   # set OPENROUTER_API_KEY (one-time)
 cd .. && ./deploy.sh
 ```
 
-`deploy.sh` builds the Lambda (`sam build --use-container`), deploys the stack
+`deploy.sh` builds the Lambda (`sam build`), deploys the stack
 ([infra/template.yaml](infra/template.yaml)), then builds the frontend, syncs it
 to S3, and invalidates the CloudFront cache. It prints the public URL at the end.
 
-> **Docker note:** Docker is required *only* by `sam build --use-container`, which
-> compiles native deps (pydantic-core, uvloop) for Lambda's arm64 Linux. It is not
-> part of the local dev loop.
+> **No Docker.** The backend build ([backend/Makefile](backend/Makefile), wired in
+> via `Metadata: BuildMethod: makefile`) installs prebuilt Linux/arm64 wheels with
+> `pip`, so `sam build` needs no container. If you ever add a dependency without a
+> prebuilt arm64 wheel, switch that build back to `sam build --use-container`.
 
-**Requirements:** AWS CLI (configured), SAM CLI, Node, Docker (deploy only).
+**Requirements:** AWS CLI (configured), SAM CLI, Node, Python 3 + pip.
 
 **Region:** the default LWA layer ARN in the template is for `us-east-1`. To deploy
 elsewhere, pass a matching layer ARN, e.g.:
