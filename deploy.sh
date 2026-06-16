@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Deploy Cuckoo Chat to AWS:
 #   backend  -> Lambda (FastAPI via Web Adapter, streaming Function URL)
-#   frontend -> S3, served through CloudFront (which also routes /api/* to Lambda)
+#   frontend -> S3, served through CloudFront (browser calls the Function URL directly)
 #
 # Requires: aws cli (configured), sam cli, node/npm, python3 + pip. No Docker:
 # the backend build (backend/Makefile) installs prebuilt Linux/arm64 wheels.
@@ -24,10 +24,10 @@ OPENROUTER_MODEL="${OPENROUTER_MODEL:-google/gemma-4-31b-it:free}"
 PARAM_OVERRIDES=(OpenRouterApiKey="$OPENROUTER_API_KEY" OpenRouterModel="$OPENROUTER_MODEL")
 [ -n "${LWA_LAYER_ARN:-}" ] && PARAM_OVERRIDES+=(LwaLayerArn="$LWA_LAYER_ARN")
 
-echo "==> Building backend (sam build)…"
+echo "==> Building backend (sam build)..."
 sam build -t infra/template.yaml
 
-echo "==> Deploying stack '$STACK_NAME' to $REGION…"
+echo "==> Deploying stack '${STACK_NAME}' to ${REGION}..."
 sam deploy \
   --stack-name "$STACK_NAME" \
   --region "$REGION" \
@@ -37,7 +37,7 @@ sam deploy \
   --no-confirm-changeset \
   --parameter-overrides "${PARAM_OVERRIDES[@]}"
 
-echo "==> Reading stack outputs…"
+echo "==> Reading stack outputs..."
 get_output () {
   aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region "$REGION" \
     --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" --output text
@@ -47,14 +47,14 @@ DIST_ID="$(get_output DistributionId)"
 CF_URL="$(get_output CloudFrontUrl)"
 API_URL="$(get_output FunctionUrl)"; API_URL="${API_URL%/}"   # drop trailing slash
 
-echo "==> Building frontend (API base: $API_URL)…"
+echo "==> Building frontend (API base: ${API_URL})..."
 ( cd frontend && npm install && VITE_API_BASE_URL="$API_URL" npm run build )
 
-echo "==> Syncing frontend to s3://$BUCKET …"
+echo "==> Syncing frontend to s3://${BUCKET} ..."
 aws s3 sync frontend/dist "s3://$BUCKET" --delete --region "$REGION"
 
-echo "==> Invalidating CloudFront cache…"
+echo "==> Invalidating CloudFront cache..."
 aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths '/*' >/dev/null
 
 echo ""
-echo "✅ Deployed:  $CF_URL"
+echo "Deployed: ${CF_URL}"
