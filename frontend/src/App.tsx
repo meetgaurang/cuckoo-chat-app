@@ -1,6 +1,7 @@
 import { Plus, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChatWindow } from "@/components/ChatWindow";
+import { CuckooLogo } from "@/components/CuckooLogo";
 import { MessageInput } from "@/components/MessageInput";
 import { useChatStream } from "@/hooks/useChatStream";
 
@@ -11,8 +12,8 @@ export default function App() {
     <div className="flex h-[100dvh] flex-col bg-background">
       <header className="flex items-center justify-between border-b px-4 py-3">
         <div className="flex items-center gap-2">
-          <span className="text-lg">🐦</span>
-          <h1 className="text-base font-semibold">Cuckoo Chat</h1>
+          <CuckooLogo className="h-6 w-6" />
+          <h1 className="text-base font-semibold">Cuckoo AI</h1>
         </div>
         <Button variant="outline" size="sm" onClick={reset} disabled={messages.length === 0}>
           <Plus className="h-4 w-4" />

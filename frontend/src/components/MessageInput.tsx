@@ -52,7 +52,7 @@ export function MessageInput({ onSend, onStop, isStreaming }: MessageInputProps)
             <Square className="h-4 w-4" />
           </Button>
         ) : (
-          <Button size="icon" onClick={submit} disabled={!value.trim()} aria-label="Send">
+          <Button size="icon" onClick={submit} aria-label="Send">
             <Send className="h-4 w-4" />
           </Button>
         )}

@@ -1,8 +1,9 @@
 import { useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Bot, User } from "lucide-react";
+import { User } from "lucide-react";
 import type { Message } from "@/types";
+import { CuckooLogo } from "@/components/CuckooLogo";
 import { cn } from "@/lib/utils";
 
 interface ChatWindowProps {
@@ -20,8 +21,8 @@ export function ChatWindow({ messages, isStreaming }: ChatWindowProps) {
   if (messages.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground">
-        <Bot className="mb-4 h-12 w-12" />
-        <h2 className="text-xl font-semibold text-foreground">Cuckoo Chat</h2>
+        <CuckooLogo className="mb-4 h-16 w-16" />
+        <h2 className="text-xl font-semibold text-foreground">Cuckoo AI</h2>
         <p className="mt-1 max-w-sm text-sm">
           Ask anything. Powered by Google Gemma 4.
         </p>
@@ -52,7 +53,7 @@ function MessageBubble({ message }: { message: Message }) {
           isUser ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
         )}
       >
-        {isUser ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+        {isUser ? <User className="h-4 w-4" /> : <CuckooLogo className="h-4 w-4" />}
       </div>
       <div
         className={cn(
