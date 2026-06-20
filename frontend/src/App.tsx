@@ -8,7 +8,7 @@ export default function App() {
   const { messages, isStreaming, error, send, stop, reset } = useChatStream();
 
   return (
-    <div className="flex h-screen flex-col bg-background">
+    <div className="flex h-[100dvh] flex-col bg-background">
       <header className="flex items-center justify-between border-b px-4 py-3">
         <div className="flex items-center gap-2">
           <span className="text-lg">🐦</span>
@@ -31,7 +31,7 @@ export default function App() {
         </div>
       )}
 
-      <footer className="border-t bg-background">
+      <footer className="border-t bg-background pb-[env(safe-area-inset-bottom)]">
         <MessageInput onSend={send} onStop={stop} isStreaming={isStreaming} />
       </footer>
     </div>
