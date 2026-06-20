@@ -23,7 +23,7 @@ export function ChatWindow({ messages, isStreaming }: ChatWindowProps) {
         <Bot className="mb-4 h-12 w-12" />
         <h2 className="text-xl font-semibold text-foreground">Cuckoo Chat</h2>
         <p className="mt-1 max-w-sm text-sm">
-          Ask anything. Powered by Google Gemma via OpenRouter.
+          Ask anything. Powered by Google Gemma 4.
         </p>
       </div>
     );
