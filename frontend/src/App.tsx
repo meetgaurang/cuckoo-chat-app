@@ -1,5 +1,6 @@
-import { Plus, AlertCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Plus, AlertCircle, Home } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { ChatWindow } from "@/components/ChatWindow";
 import { CuckooLogo } from "@/components/CuckooLogo";
 import { MessageInput } from "@/components/MessageInput";
@@ -15,10 +16,19 @@ export default function App() {
           <CuckooLogo className="h-6 w-6" />
           <h1 className="text-base font-semibold">Cuckoo AI</h1>
         </div>
-        <Button variant="outline" size="sm" onClick={reset} disabled={messages.length === 0}>
-          <Plus className="h-4 w-4" />
-          New chat
-        </Button>
+        <div className="flex items-center gap-2">
+          <a
+            href="https://gaurangpatel.dev"
+            aria-label="Home"
+            className={cn(buttonVariants({ variant: "outline", size: "icon" }), "h-9 w-9")}
+          >
+            <Home className="h-4 w-4" />
+          </a>
+          <Button variant="outline" size="sm" onClick={reset} disabled={messages.length === 0}>
+            <Plus className="h-4 w-4" />
+            New chat
+          </Button>
+        </div>
       </header>
 
       <main className="flex-1 overflow-y-auto">
